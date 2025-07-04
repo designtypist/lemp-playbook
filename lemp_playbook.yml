@@ -1,9 +1,9 @@
 # Install PHP, Nginx, Composer, Redis, Supervisor, MySql, NVM
 ---
-- hosts: "{{ target_host }}"
+- hosts: localhost
+  connection: local
   become: yes
   become_method: sudo
-  remote_user: designtypist
   vars:
     php_version: 8.1
     nvm_version: 0.40.3
@@ -14,18 +14,17 @@
       timezone:
         name: America/Toronto
 
-    - name: Update and Upgrade apt Packages
+    - name: Update and upgrade apt packages
       apt:
         upgrade: yes
 
     # Add Required Repositories
-    - name: Add Repositories ppa:ondrej/php
+    - name: Add repositories ppa:ondrej/php
       apt_repository:
         repo: "ppa:ondrej/php"
         state: present
 
-    # Update APT
-    - name: Update and Upgrade apt Packages
+    - name: Update and upgrade apt packages
       apt:
         upgrade: yes
 
@@ -39,7 +38,7 @@
       args:
         executable: /bin/bash
 
-    - name: install software-properties-common
+    - name: Install software-properties-common
       apt:
         name: software-properties-common
         state: latest
@@ -52,9 +51,16 @@
         name: redis-server
         state: present
 
-    - name: Install supervisor package
+    - name: Install Supervisor package
       apt:
         name: supervisor
+        state: present
+
+    - name: Install Let's Encrypt package
+      apt:
+        name:
+          - certbot
+          - python3-certbot-nginx
         state: present
 
     - name: Install PHP {{ php_version }} and required modules
@@ -69,7 +75,6 @@
         - php{{ php_version }}-mbstring
         - php{{ php_version }}-xml
         - php{{ php_version }}-curl
-        - php{{ php_version }}-json
         - php{{ php_version }}-sqlite3
         - php{{ php_version }}-mysql
         - php{{ php_version }}-zip
@@ -79,7 +84,7 @@
         - php{{ php_version }}-opcache
         - php{{ php_version }}-redis
 
-    - name: Installing Packages And Dependencies
+    - name: Installing packages and dependencies
       package:
         name: "{{item}}"
         state: present
@@ -89,6 +94,11 @@
         - mysql-client
         - python3-mysqldb
         - libmysqlclient-dev
+
+    - name: Download and install Composer
+      shell: curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version={{ composer_version }}
+    - name: Move Composer to PATH
+      shell: mv /usr/local/bin/composer /usr/bin/
 
     # MySQL Configuration
     - name: Sets the root password
@@ -112,34 +122,32 @@
         login_user: root
         login_password: "{{ mysql_root_password }}"
 
-    # - name: Install composer
-    #  apt:
-    #    name: composer
-    #    state: present
-
-    - name: Download Composer
-      shell: curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version={{ composer_version }}
-    - name: Move Composer to PATH
-      shell: mv /usr/local/bin/composer /usr/bin/
-
-    # Restart Services
+    # Restart services
     - name: Restart Nginx
       service:
         name: nginx
         state: restarted
+        enabled: yes
 
     - name: Start Redis service
       service:
         name: redis-server
         state: restarted
+        enabled: yes
 
-    - name: Start and enable supervisor service
+    - name: Start and enable Supervisor service
       systemd:
         name: supervisor
         state: restarted
         enabled: yes
 
-    - name: Start and enable mysql service
+    - name: Start and enable Let's Encrypt
+      systemd:
+        name: certbot.timer
+        state: restarted
+        enabled: yes
+
+    - name: Start and enable MySQL service
       service:
         name: mysql
         state: started

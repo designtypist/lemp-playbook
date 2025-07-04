@@ -22,7 +22,7 @@ Change current working directory to ansible-lemp-stack
 Run Playbook
 
     ansible-playbook lemp-stack.yaml --extra-vars "target_host=host_name"
-
+    ansible-playbook lemp-stack.yaml --ask-become-pass
 
 ## Versions that will install
 
