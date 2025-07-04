@@ -8,7 +8,9 @@
     php_version: 8.1
     nvm_version: 0.40.3
     composer_version: 2.8.9
+    mysql_root_user: root
     mysql_root_password: "yH$%hdiAC4XqC8Zz"
+    mysql_root_host: localhost
   tasks:
     - name: Set timezone to America/Toronto
       timezone:
@@ -101,11 +103,26 @@
       shell: mv /usr/local/bin/composer /usr/bin/
 
     # MySQL Configuration
-    - name: Sets the root password
-      mysql_user:
-        name: root
+
+    - name: Check if MySQL root user exists
+      community.mysql.mysql_query:
+        login_user: "{{ mysql_root_user }}"
+        login_password: "{{ mysql_root_password }}"
+        query: >
+          SELECT User,Host FROM mysql.user
+          WHERE User = '{{ mysql_root_user }}'
+          AND Host = '{{ mysql_root_host }}'
+      register: root_user_check
+
+    - name: Create MySQL root user if missing
+      community.mysql.mysql_user:
+        name: "{{ mysql_root_user }}"
+        host: "{{ mysql_root_host }}"
         password: "{{ mysql_root_password }}"
         login_unix_socket: /var/run/mysqld/mysqld.sock
+        priv: "*.*:ALL,GRANT"
+        state: present
+      when: root_user_check.rowcount == 0
 
     - name: Removes all anonymous user accounts
       mysql_user:
