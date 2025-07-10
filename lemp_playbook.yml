@@ -8,9 +8,9 @@
     php_version: 8.1
     nvm_version: 0.40.3
     composer_version: 2.8.9
-    mysql_root_user: root
-    mysql_root_password: "yH$%hdiAC4XqC8Zz"
-    mysql_root_host: localhost
+    db_root_user: root
+    db_root_password: "yH$%hdiAC4XqC8Zz"
+    db_root_host: localhost
   tasks:
     - name: Set timezone to America/Toronto
       timezone:
@@ -86,39 +86,33 @@
         - php{{ php_version }}-opcache
         - php{{ php_version }}-redis
 
-    - name: Installing packages and dependencies
-      package:
-        name: "{{item}}"
-        state: present
-        update_cache: yes
-      loop:
-        - mysql-server
-        - mysql-client
-        - python3-mysqldb
-        - libmysqlclient-dev
-
     - name: Download and install Composer
       shell: curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version={{ composer_version }}
     - name: Move Composer to PATH
       shell: mv /usr/local/bin/composer /usr/bin/
 
+    - name: Installing MariaDB server
+      apt:
+        name: mariadb-server
+        state: present
+
     # MySQL Configuration
 
-    - name: Check if MySQL root user exists
+    - name: Check if MariaDB root user exists
       community.mysql.mysql_query:
-        login_user: "{{ mysql_root_user }}"
-        login_password: "{{ mysql_root_password }}"
+        login_user: "{{ db_root_user }}"
+        login_password: "{{ db_root_password }}"
         query: >
           SELECT User,Host FROM mysql.user
-          WHERE User = '{{ mysql_root_user }}'
-          AND Host = '{{ mysql_root_host }}'
+          WHERE User = '{{ db_root_user }}'
+          AND Host = '{{ db_root_host }}'
       register: root_user_check
 
-    - name: Create MySQL root user if missing
+    - name: Create MariaDB root user if missing
       community.mysql.mysql_user:
-        name: "{{ mysql_root_user }}"
-        host: "{{ mysql_root_host }}"
-        password: "{{ mysql_root_password }}"
+        name: "{{ db_root_user }}"
+        host: "{{ db_root_host }}"
+        password: "{{ db_root_password }}"
         login_unix_socket: /var/run/mysqld/mysqld.sock
         priv: "*.*:ALL,GRANT"
         state: present
@@ -129,15 +123,15 @@
         name: ""
         host_all: yes
         state: absent
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
+        login_user: "{{ db_root_user }}"
+        login_password: "{{ db_root_password }}"
 
-    - name: Removes the MySQL test database
+    - name: Removes the MariaDB test database
       mysql_db:
         name: test
         state: absent
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
+        login_user: "{{ db_root_user  }}"
+        login_password: "{{ db_root_password }}"
 
     # Restart services
     - name: Restart Nginx
@@ -164,8 +158,8 @@
         state: restarted
         enabled: yes
 
-    - name: Start and enable MySQL service
+    - name: Start and enable MariaDB service
       service:
-        name: mysql
+        name: mariadb
         state: started
         enabled: yes
