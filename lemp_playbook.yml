@@ -5,7 +5,52 @@
   become: yes
   become_method: sudo
   vars:
-    php_version: 8.1
+    php_versions:
+      - version: "8.1"
+        modules:
+          - fpm
+          - cli
+          - common
+          - mbstring
+          - xml
+          - curl
+          - sqlite3
+          - mysql
+          - zip
+          - bcmath
+          - dom
+          - gd
+          - opcache
+      - version: "8.3"
+        modules:
+          - fpm
+          - cli
+          - common
+          - mbstring
+          - xml
+          - curl
+          - sqlite3
+          - mysql
+          - zip
+          - bcmath
+          - dom
+          - gd
+          - opcache
+      - version: "8.4"
+        modules:
+          - fpm
+          - cli
+          - common
+          - mbstring
+          - xml
+          - curl
+          - sqlite3
+          - mysql
+          - zip
+          - bcmath
+          - dom
+          - gd
+          - opcache
     nvm_version: 0.40.3
     composer_version: 2.8.9
     db_root_user: root
@@ -65,26 +110,13 @@
           - python3-certbot-nginx
         state: present
 
-    - name: Install PHP {{ php_version }} and required modules
+    - name: Install PHP {{ php_versions }} and required modules
       apt:
-        name: "{{ item }}"
+        name: "php{{ item.0.version }}-{{ item.1 }}"
         state: present
-      with_items:
-        - php{{ php_version }}
-        - php{{ php_version }}-fpm
-        - php{{ php_version }}-cli
-        - php{{ php_version }}-common
-        - php{{ php_version }}-mbstring
-        - php{{ php_version }}-xml
-        - php{{ php_version }}-curl
-        - php{{ php_version }}-sqlite3
-        - php{{ php_version }}-mysql
-        - php{{ php_version }}-zip
-        - php{{ php_version }}-bcmath
-        - php{{ php_version }}-dom
-        - php{{ php_version }}-gd
-        - php{{ php_version }}-opcache
-        - php{{ php_version }}-redis
+      with_subelements:
+        - "{{ php_versions }}"
+        - modules
 
     - name: Download and install Composer
       shell: curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version={{ composer_version }}
@@ -157,6 +189,13 @@
         name: certbot.timer
         state: restarted
         enabled: yes
+
+    - name: Ensure PHP-FPM is running
+      service:
+        name: "php{{ item.version }}-fpm"
+        state: started
+        enabled: yes
+      loop: "{{ php_versions }}"
 
     - name: Start and enable MariaDB service
       service:
